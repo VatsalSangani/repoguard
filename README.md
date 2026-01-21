@@ -1,6 +1,6 @@
 # 🛡️ RepoGuard: Agentic Security Orchestrator
 
-**RepoGuard** is an autonomous **Neuro-Symbolic AI Agent** designed to audit codebases for security vulnerabilities, secrets, and style compliance.
+**RepoGuard** is an autonomous **AI Agent** designed to audit codebases for security vulnerabilities, secrets, and style compliance.
 
 Unlike standard static analysis scripts, RepoGuard uses an **LLM-based ReAct (Reason+Act) Loop** to dynamically plan its audit strategy, select the appropriate tools, and synthesize findings into a human-readable report. It features a hybrid architecture that combines the flexibility of GenAI with the reliability of deterministic tools like `ruff` and `detect-secrets`.
 
