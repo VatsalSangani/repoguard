@@ -1,0 +1,10 @@
+langchain
+langchain-openai
+mcp>=1.8.1
+pydantic
+langgraph
+python-dotenv
+pymarkdownlnt>=0.9.6
+detect-secrets
+ruff
+uv
