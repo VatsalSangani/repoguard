@@ -8,11 +8,15 @@ Unlike standard static analysis scripts, RepoGuard uses an **LLM-based ReAct (Re
 
 ##  Key Features
 
-* ** Agentic Orchestration:** Built with **LangGraph** to model a cyclic state machine that reasons about file types and selects tools dynamically.
-* ** Model Context Protocol (MCP):** Implements a custom driver to interface with the **Ruff Language Server** via the MCP standard, enabling deep Python analysis.
-* ** Hybrid Intelligence:** Prevents AI hallucinations by relying on industry-standard static analysis engines (`detect-secrets`, `pymarkdown`, `ruff`) for execution, while using the LLM for planning and summarization.
-* ** Async Concurrency:** Manages complex asyncio event loops to handle high-throughput messaging with MCP servers without crashing.
-* ** Dual Reporting:** Generates both a clean **Markdown Summary** for developers and a structured **JSON Report** for CI/CD pipelines.
+* **Currently Supported Scans:**
+    * **Python (`.py`):** Deep static analysis and linting via Ruff (MCP).
+    * **Markdown (`.md`):** Style and formatting validation via PyMarkdown.
+    * **Secret Detection:** Scans all file types for hardcoded API keys and credentials.
+* **Agentic Orchestration:** Built with **LangGraph** to model a cyclic state machine that reasons about file types and selects tools dynamically.
+* **Model Context Protocol (MCP):** Implements a custom driver to interface with the **Ruff Language Server** via the MCP standard, enabling deep Python analysis.
+* **Hybrid Intelligence:** Prevents AI hallucinations by relying on industry-standard static analysis engines (`detect-secrets`, `pymarkdown`, `ruff`) for execution, while using the LLM for planning and summarization.
+* **Async Concurrency:** Manages complex asyncio event loops to handle high-throughput messaging with MCP servers without crashing.
+* **Dual Reporting:** Generates both a clean **Markdown Summary** for developers and a structured **JSON Report** for CI/CD pipelines.
 
 ---
 
@@ -30,7 +34,7 @@ RepoGuard follows a modular pipeline architecture where the **Main Agent** acts 
 
 ---
 
-## 📦 Installation
+##  Installation
 
 ### Prerequisites
 * Python 3.10+
