@@ -73,7 +73,7 @@ LANGCHAIN_TRACING_V2=true
 
 ---
 
-## Usage
+## Usage and Demo
 **Run a Security Scan**
 To start the interactive agent:
 ```
@@ -82,6 +82,10 @@ python agents/main_agent.py
 * **Interactive Mode:** The agent will ask for a folder path.
 * **Safe Mode:** If it detects secrets, it will ask: "[Y]es, [S]afe Scan, or [N]o?"
 * **Output:** Findings are saved to scan_report.md.
+
+![Demo 1 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%201.png)
+![Demo 2 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%202.png)
+![Demo 3 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%203.png)
 
 ---
 
