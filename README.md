@@ -1,125 +1,141 @@
-# 🛡️ RepoGuard: Agentic Security Orchestrator
+# 🛡️ RepoGuard: Neuro-Symbolic Security Agent
 
-**RepoGuard** is an autonomous **AI Agent** designed to audit codebases for security vulnerabilities, secrets, and style compliance.
+**RepoGuard** is an advanced autonomous AI agent designed to audit codebases for security vulnerabilities, exposed secrets, and code quality issues.
 
-Unlike standard static analysis scripts, RepoGuard uses an **LLM-based ReAct (Reason+Act) Loop** to dynamically plan its audit strategy, select the appropriate tools, and synthesize findings into a human-readable report. It features a hybrid architecture that combines the flexibility of GenAI with the reliability of deterministic tools like `ruff` and `detect-secrets`.
+Unlike traditional static analysis tools that blindly scan every file, RepoGuard uses a **Multi-Agent Neuro-Symbolic Architecture**. It combines the reasoning capabilities of Large Language Models (LLMs) to understand context and intent, with the reliability of deterministic industry-standard tools (Ruff, Detect-Secrets) to execute precise scans.
 
----
-
-##  Key Features
-
-* **Currently Supported Scans:**
-    * **Python (`.py`):** Deep static analysis and linting via Ruff (MCP).
-    * **Markdown (`.md`):** Style and formatting validation via PyMarkdown.
-    * **Secret Detection:** Scans all file types for hardcoded API keys and credentials.
-* **Agentic Orchestration:** Built with **LangGraph** to model a cyclic state machine that reasons about file types and selects tools dynamically.
-* **Model Context Protocol (MCP):** Implements a custom driver to interface with the **Ruff Language Server** via the MCP standard, enabling deep Python analysis.
-* **Hybrid Intelligence:** Prevents AI hallucinations by relying on industry-standard static analysis engines (`detect-secrets`, `pymarkdown`, `ruff`) for execution, while using the LLM for planning and summarization.
-* **Async Concurrency:** Manages complex asyncio event loops to handle high-throughput messaging with MCP servers without crashing.
-* **Dual Reporting:** Generates both a clean **Markdown Summary** for developers and a structured **JSON Report** for CI/CD pipelines.
+It features **Human-in-the-Loop (HIL)** controls for high-risk operations and an **Automated Evaluation Suite** to prevent hallucinations.
 
 ---
 
-##  Architecture
+## Key Features
 
-RepoGuard follows a modular pipeline architecture where the **Main Agent** acts as the orchestrator for specialized sub-agents and tools.
-
-1.  **Parser Agent:** Analyzes input paths and breaks them down into atomic tasks.
-2.  **Processing Agent:** Converts tasks into an execution plan.
-3.  **Tool Execution:**
-    * **SecretsValidator:** Scans for API keys and credentials.
-    * **MarkdownValidator:** Checks documentation standards.
-    * **PythonValidator (MCP):** Connects to the Ruff MCP Server for linting.
-4.  **Aggregator Agent:** Compiles raw data into a final coherent report.
+* **Multi-Agent Orchestration:** A sequential chain of specialized agents (Parser → Guardrails → Processor → Aggregator) built with **LangGraph**.
+* **Intelligent Routing:** Uses "1-to-Many" routing logic. A single file can be routed to multiple tools simultaneously (e.g., a Python file is checked for *both* syntax errors and hardcoded secrets).
+* **Human-in-the-Loop (HIL):** The agent autonomously pauses and requests user approval before processing high-risk files (like `.env` or auth logic). Includes a "Safe Scan" mode to auto-sanitize inputs.
+* **Automated Evaluation Suite:** Includes a built-in `evaluate.py` script that uses a secondary "Judge LLM" (GPT-4o-mini) to grade the agent's reporting accuracy and hallucination rate.
+* **Deep Analysis:**
+    * **Python:** Syntax & Logic checks via Ruff.
+    * **Secrets:** Entropy and pattern-based secret detection.
+    * **Markdown:** Documentation standards and formatting validation.
 
 ---
 
-##  Installation
+## Architecture
 
-### Prerequisites
-* Python 3.10+
-* [uv](https://github.com/astral-sh/uv) (Recommended for MCP tool management) or `pip`
+RepoGuard operates as a state-based graph application:
 
-### 1. Clone the Repository
+```mermaid
+graph LR
+    User -->|Input Path| Parser(Parser Agent)
+    Parser -->|File List| Guard{Guardrails}
+    Guard -- High Risk --> HIL[Human Approval]
+    Guard -- Safe --> Proc(Processing Agent)
+    HIL -- "Safe Scan" --> Filter[Remove Secrets]
+    Filter --> Proc
+    HIL -- Approved --> Proc
+    Proc -->|1-to-Many Routing| Tools[Tools Execution]
+    Tools -->|Raw Logs| Agg(Aggregator Agent)
+    Agg -->|Final Report| Report[scan_report.md]
 ```
-git clone [https://github.com/yourusername/repoguard.git](https://github.com/yourusername/repoguard.git)
+
+## The Agent Squad
+
+* **Parser Agent:** Intelligently maps the target directory, ignoring noise (binaries, .venv) and handling user intent.
+* **Guardrails:** A safety layer that flags sensitive files (.env, id_rsa) and triggers the Human-in-the-Loop intervention.
+* **Processing Agent:** The "Router." It inspects each file and selects the correct combination of tools (e.g., ["python", "secrets"] for main.py).
+* **Aggregator Agent:** A writer agent that synthesizes raw JSON tool logs into a professional, actionable Markdown report.
+
+---
+
+## Installation
+**Prerequisites**
+* Python 3.10+
+* Git
+
+1. Clone the Repository
+```
+git clone https://github.com/VatsalSangani/repoguard.git
 cd repoguard
 ```
-
-### 2. Install Dependencies
+2. Install Dependencies
 ```
 pip install -r requirements.txt
 ```
 
-### 3. Setup Environment Variables
-Create a .env file in the root directory and add your OpenAI API Key:
+3. Setup Environment Variables
+Create a .env file in the root directory:
 ```
 OPENAI_API_KEY=sk-proj-your-key-here
+# Optional: Enable tracing for debugging
+LANGCHAIN_TRACING_V2=true
 ```
 
+---
+
 ## Usage
-
-Run the main agent entry point:
-
+**Run a Security Scan**
+To start the interactive agent:
 ```
 python agents/main_agent.py
 ```
+* **Interactive Mode:** The agent will ask for a folder path.
+* **Safe Mode:** If it detects secrets, it will ask: "[Y]es, [S]afe Scan, or [N]o?"
+* **Output:** Findings are saved to scan_report.md.
 
-## Interactive Mode
-The agent will prompt you for a target path. You can provide:
-1.   Single File: test_repo/src/config.py
-2.   Directory: test_repo
-3.   Multiple Paths: test_repo/src/main.py test_repo/docs
+---
 
-## Example Output
+## Run the Evaluation Suite
+To verify the agent's logic against a golden dataset:
 ```
-=== RepoGuard (Dynamic Multi-Target Production Ready) ===
-Enter path(s): test_repo
+# 1. Generate the test data (includes binaries & fake secrets)
+python create_test_repo.py
 
-... [Agent Reasoning & Tool Execution Logs] ...
-
-=== Final Report ===
-
-### Key Findings:
-- **Total Files Scanned:** 5
-- **Total Issues Found:** 12
-- **Tools Executed:** 3
-
-### Critical Findings:
-- [SecretsValidator] Potential secret detected at Line 2
-- [PythonCodeValidator] File: config.py | Issues: 3 found
-
-### Recommended Next Steps:
-1. Review critical findings.
-2. URGENT: Rotate exposed secrets and add them to `.gitignore`.
-3. Run `ruff check .` locally to fix any linting errors.
-
-[+] Full report saved to 'scan_report.md'
-
+# 2. Run the evaluator
+python evaluate.py
 ```
+**What it does:** Runs the agent in headless mode against test_repov3_stress and uses an LLM Judge to score the output (0-100).
+
+---
 
 ## Project Structure
 ```
 /
-├── agents/                 # The "Brain" (LLM Logic)
-│   ├── main_agent.py       # Entry point & ReAct Loop
-│   ├── parser_agent.py     # Task decomposition
-│   ├── processing_agent.py # Tool planning
-│   ├── aggregator_agent.py # Reporting logic
-│   └── schemas.py          # Pydantic models
-├── tools/                  # The "Body" (Deterministic Execution)
-│   └── tools.py            # Wrappers for ruff, detect-secrets, etc.
-├── mcp_drivers/            # Connectivity
-│   └── mcp_driver.py       # Custom driver for MCP Server interaction
-├── draw_architecture.py    # Architecture visualization script
+├── agents/                 # The "Brain" (LangGraph Nodes)
+│   ├── main_agent.py       # Entry point & Graph Definition
+│   ├── parser_agent.py     # File discovery & filtering
+│   ├── guardrails.py       # Safety logic & Risk detection
+│   ├── processing_agent.py # Tool routing logic
+│   ├── aggregator_agent.py # Report generation
+|   └── schemas.py          # Pydantic Models (Data Contracts)
+├── tools/                  # The "Body" (Tool Drivers)
+│   └── tools.py            # Wrappers for Ruff, Detect-Secrets
+├──mcp_drivers/             # The MCP brain
+|   └── mcp_driver.py       # Script for ruff_mcp_driver
+├── evaluate.py             # Automated Testing & LLM-as-a-Judge
+├── create_test_repo.py     # Test Data Generator
 ├── requirements.txt        # Dependencies
-└── .env                    # Secrets
-
+├── state.py                # Shared Memory Schema (LangGraph State)
+└── scan_report.md          # Output Artifact
 ```
 
-## Tech Stack
-*   Orchestration: LangGraph
-*   LLM Provider: OpenAI (GPT-4o Mini)
-*   Protocols: Model Context Protocol (MCP)
-*   Static Analysis: Ruff, Detect-Secrets, PyMarkdown
-*   Runtime: Python Asyncio
+---
+
+## Evaluation Metrics
+We measure the agent's performance on 4 key metrics:
+1. **Recall:** Did it find 100% of the hidden secrets?
+
+2. **Robustness:** Did it handle binary files and deep nesting without crashing?
+
+3. **Tool Accuracy:** Did it select the correct tools (e.g., scanning dangerous.py for both syntax and secrets)?
+
+4. **Faithfulness:** Did the final report accurately reflect the logs without hallucination? (Measured by LLM Judge).
+
+---
+
+## Future Roadmap
+* **Docker Support:** Containerize the tool for CI/CD pipelines.
+
+* **Custom Policies:** Allow users to define custom "Risk Rules" via a config file.
+
+
