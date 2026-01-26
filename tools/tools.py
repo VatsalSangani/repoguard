@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 
 from langchain.tools import tool
 from pymarkdown.api import PyMarkdownApi
+from langsmith import traceable
+
 
 # Import the Custom MCP Driver
 from mcp_drivers.mcp_driver import RuffMCPDriver
@@ -57,6 +59,7 @@ def _lint_file(api: PyMarkdownApi, file_path: Path) -> List[Dict[str, Any]]:
 # -------------------------
 # Tool 1: Markdown Validator (Local)
 # -------------------------
+
 @tool("MarkdownValidator")
 def markdownlint_impl(target: str) -> Dict[str, Any]:
     """Lint Markdown files. Returns a summary to save tokens."""
@@ -109,6 +112,7 @@ def markdownlint_impl(target: str) -> Dict[str, Any]:
 # -------------------------
 # Tool 2: Secrets Validator (Local)
 # -------------------------
+
 @tool("SecretsValidator")
 def secrets_scan_impl(target: str) -> Dict[str, Any]:
     """Scan for secrets using detect-secrets."""
@@ -190,6 +194,7 @@ def secrets_scan_impl(target: str) -> Dict[str, Any]:
 # -------------------------
 # Tool 3: Ruff (via mcp-server-analyzer)
 # -------------------------
+
 @tool("PythonCodeValidator")
 def ruff_lint_impl(target: str) -> Dict[str, Any]:
     """

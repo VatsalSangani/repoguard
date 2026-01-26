@@ -1,5 +1,28 @@
-.env
-.venv
+# --- Python Internals (Never commit these) ---
 __pycache__/
 *.pyc
+.ruff_cache/
+
+# --- Virtual Environment (Dependencies are in requirements.txt) ---
+.venv/
+venv/
+env/
+
+# --- Environment Variables (CRITICAL SECURITY) ---
+# This ignores your REAL .env file with your OpenAI Key
+.env
+
+# --- Generated Artifacts ---
+# You don't need to commit the report, users will generate their own
 scan_report.md
+
+# --- Test Repositories ---
+# Since you have scripts (create_test_repo.py) to generate these,
+# it is cleaner NOT to commit the folders.
+test_repo/
+test_repov2/
+test_repov3_stress/
+
+# --- OS Junk ---
+.DS_Store
+Thumbs.db
