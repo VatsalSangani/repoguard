@@ -158,4 +158,6 @@ We measure the agent's performance on 4 key metrics:
 
 * **Custom Policies:** Allow users to define custom "Risk Rules" via a config file.
 
+*  **Additional file types:** Add more file types like .java, .json, .css, .yaml, etc.
+
 
