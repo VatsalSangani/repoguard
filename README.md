@@ -89,6 +89,22 @@ python agents/main_agent.py
 
 ---
 
+## Observability & Performance Metrics
+RepoGuard includes enterprise-grade observability powered by LangSmith. This allows us to trace the agent's "thought process," monitor token usage, and optimize latency for real-world deployment.
+
+The screenshots below demonstrate a live tracing of the same demo example we have used above:
+
+![Tracing 1](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%201.png)
+![Tracing 2](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%202.png)
+![Tracing 3](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%203.png)
+![Tracing 4](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%204.png)
+
+* **Cost:** The entire audit (Plan → Execute → Judge) runs for < $0.01 (approx 35k tokens) by leveraging optimized prompts and gpt-4o-mini.
+
+* **Latency:** The graph handles long-running async operations (tool execution) while maintaining a responsive 1-2 second planning phase.
+
+---
+
 ## Run the Evaluation Suite
 To verify the agent's logic against a golden dataset:
 ```
