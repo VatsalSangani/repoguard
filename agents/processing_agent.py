@@ -1,54 +1,59 @@
-import sys
-from pathlib import Path
-from langchain.tools import tool
-from schemas import (
-    ProcessingInput, ProcessingOutput, PlannedToolCall
-)
-
-# Add parent directory to path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-# Import the Real Tools (Ruff, Secrets, Markdown)
+from langchain_openai import ChatOpenAI
+from state import AgentState
 from tools.tools import markdownlint_impl, secrets_scan_impl, ruff_lint_impl
 
-# ALIAS MAPPING
-markdown_validator_tool = markdownlint_impl
-secrets_validator_tool = secrets_scan_impl
-python_validator_tool = ruff_lint_impl
-
-@tool(args_schema=ProcessingInput)
-def processing_agent(scan_result: any) -> str:
-    """
-    Converts the Parser's task list into a Tool Execution Plan.
-    """
-    if hasattr(scan_result, "tasks"):
-        tasks = scan_result.tasks
-    else:
-        tasks = scan_result.get("tasks", [])
+def processing_node(state: AgentState):
+    print("\n--- 🛠️ Step 2: Processing Agent (Multi-Tool Capable) ---")
     
-    plan = []
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    files = state["target_files"]
+    scan_results = []
     
-    for task in tasks:
-        t_type = getattr(task, "type", None) or task.get("type")
-        target = getattr(task, "target", None) or task.get("target")
+    for file_path in files:
+        # --- 1. THE MULTI-TOOL PROMPT ---
+        prompt = (
+            f"File: '{file_path}'\n"
+            "Task: Select all applicable tools for this file.\n"
+            "Rules:\n"
+            "1. 'python' -> Use for .py files.\n"
+            "2. 'markdown' -> Use for .md files.\n"
+            "3. 'secrets' -> Use for .env, .txt, .json, AND ALL code files (.py, .js) to check for hardcoded keys.\n"
+            "Output: Comma-separated list (e.g., 'python, secrets')."
+        )
         
-        if t_type == "markdown_validate":
-            plan.append(PlannedToolCall(
-                tool="MarkdownValidator",
-                args={"target": target},
-                reason=f"Scan {Path(target).name} for markdown issues"
-            ))
-        elif t_type == "python_validate":
-            plan.append(PlannedToolCall(
-                tool="PythonCodeValidator",
-                args={"target": target},
-                reason=f"Lint {Path(target).name} with Ruff (MCP)"
-            ))
-        elif t_type == "secrets_scan":
-            plan.append(PlannedToolCall(
-                tool="SecretsValidator",
-                args={"target": target},
-                reason=f"Scan {Path(target).name} for secrets"
-            ))
+        # Get decision (e.g., "python, secrets")
+        decision_raw = llm.invoke(prompt).content.lower()
+        
+        # Clean up string into a list
+        selected_tools = [t.strip() for t in decision_raw.split(",") if t.strip()]
+        
+        print(f"   file: {file_path} -> tools: {selected_tools}")
+        
+        # --- 2. THE EXECUTION LOOP ---
+        for tool_name in selected_tools:
+            tool_output = None
+            try:
+                if "python" in tool_name:
+                    tool_output = ruff_lint_impl.invoke({"target": file_path})
+                elif "markdown" in tool_name:
+                    tool_output = markdownlint_impl.invoke({"target": file_path})
+                elif "secrets" in tool_name:
+                    tool_output = secrets_scan_impl.invoke({"target": file_path})
+                else:
+                    continue # Skip invalid tool names
+                    
+                # Append EACH tool result separately
+                scan_results.append({
+                    "file": file_path, 
+                    "tool_used": tool_name,
+                    "details": tool_output
+                })
 
-    return ProcessingOutput(plan=plan).model_dump_json()
+            except Exception as e:
+                scan_results.append({
+                    "file": file_path,
+                    "tool_used": tool_name, 
+                    "details": {"error": str(e)}
+                })
+
+    return {"raw_scan_results": scan_results}

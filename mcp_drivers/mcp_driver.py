@@ -1,10 +1,12 @@
 import asyncio
 import os
 from contextlib import AsyncExitStack
+from langsmith import traceable
 
 # Official MCP SDK imports
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
 
 class RuffMCPDriver:
     def __init__(self):
