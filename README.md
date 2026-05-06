@@ -77,7 +77,7 @@ LANGCHAIN_TRACING_V2=true
 **Run a Security Scan**
 To start the interactive agent:
 ```
-python agents/main_agent.py
+python main.py
 ```
 * **Interactive Mode:** The agent will ask for a folder path.
 * **Safe Mode:** If it detects secrets, it will ask: "[Y]es, [S]afe Scan, or [N]o?"
@@ -121,22 +121,37 @@ python evaluate.py
 ## Project Structure
 ```
 /
-├── agents/                 # The "Brain" (LangGraph Nodes)
-│   ├── main_agent.py       # Entry point & Graph Definition
-│   ├── parser_agent.py     # File discovery & filtering
-│   ├── guardrails.py       # Safety logic & Risk detection
-│   ├── processing_agent.py # Tool routing logic
-│   ├── aggregator_agent.py # Report generation
-|   └── schemas.py          # Pydantic Models (Data Contracts)
-├── tools/                  # The "Body" (Tool Drivers)
-│   └── tools.py            # Wrappers for Ruff, Detect-Secrets
-├──mcp_drivers/             # The MCP brain
-|   └── mcp_driver.py       # Script for ruff_mcp_driver
+├── main.py                 # Entry point — CLI loop (≤50 lines)
+├── config.py               # All tuneable constants (models, limits, timeouts, paths)
+├── state.py                # Shared LangGraph state schema
+│
+├── graph/
+│   └── builder.py          # Assembles and compiles the LangGraph StateGraph
+│
+├── agents/                 # One file per agent node
+│   ├── parser.py           # File discovery & filtering
+│   ├── guardrails.py       # Risk detection & safety routing
+│   ├── processor.py        # LLM-based tool routing + execution
+│   └── aggregator.py       # Synthesises raw logs into a Markdown report
+│
+├── tools/                  # One file per tool
+│   ├── markdown_tool.py    # PyMarkdownLint wrapper
+│   ├── secrets_tool.py     # Detect-Secrets wrapper
+│   └── python_tool.py      # Ruff via MCP wrapper
+│
+├── mcp_drivers/
+│   └── mcp_driver.py       # Async MCP client for mcp-server-analyzer
+│
+├── models/
+│   └── schemas.py          # Pydantic data contracts (FileList)
+│
+├── services/
+│   └── report.py           # Saves the final report to disk
+│
 ├── evaluate.py             # Automated Testing & LLM-as-a-Judge
-├── create_test_repo.py     # Test Data Generator
+├── create_test_repo.py     # Test data generator
 ├── requirements.txt        # Dependencies
-├── state.py                # Shared Memory Schema (LangGraph State)
-└── scan_report.md          # Output Artifact
+└── scan_report.md          # Output artifact (generated at runtime)
 ```
 
 ---
