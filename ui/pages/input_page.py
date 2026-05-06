@@ -1,0 +1,93 @@
+"""Phase 1 — GitHub URL or manual file list input."""
+
+import tempfile
+import uuid
+from pathlib import Path
+from typing import List, Tuple
+
+import streamlit as st
+
+
+def _clone_repo(url: str) -> Tuple[str, List[str]]:
+    import git
+    tmp_dir = tempfile.mkdtemp()
+    git.Repo.clone_from(url, tmp_dir)
+    files: List[str] = []
+    for ext in ["*.py", "*.md", "*.txt", "*.yml", "*.yaml", "*.env"]:
+        files.extend(
+            str(p) for p in Path(tmp_dir).rglob(ext)
+            if ".git" not in str(p)
+        )
+    return tmp_dir, files
+
+
+def _run_phase1(files: List[str], scan_path: str) -> None:
+    from graph.builder import build_graph
+    from state import RepoGuardState
+
+    app = build_graph()
+    config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    initial_state = RepoGuardState(files=files, scan_path=scan_path)
+
+    for _ in app.stream(initial_state, config=config):
+        pass
+
+    snapshot = app.get_state(config)
+    st.session_state.app_graph = app
+    st.session_state.thread_config = config
+    st.session_state.snapshot = snapshot
+    st.session_state.phase = "approval"
+    st.rerun()
+
+
+def render() -> None:
+    st.subheader("📁 Repository Input")
+
+    input_mode = st.radio("Input Mode", ["GitHub URL", "File List"], horizontal=True)
+
+    repo_url = ""
+    files_input = ""
+
+    if input_mode == "GitHub URL":
+        repo_url = st.text_input(
+            "GitHub Repository URL",
+            placeholder="https://github.com/username/repo",
+        )
+        if repo_url:
+            st.info("⚠️ Repository will be cloned temporarily for scanning")
+    else:
+        files_input = st.text_area(
+            "Enter file paths (one per line)",
+            placeholder="src/main.py\nREADME.md\nconfig.py",
+            height=150,
+        )
+
+    if st.button("🚀 Start Security Scan", type="primary", use_container_width=True):
+        files: List[str] = []
+        scan_path = ""
+
+        if input_mode == "GitHub URL":
+            if not repo_url.strip():
+                st.error("Please enter a GitHub URL")
+                st.stop()
+            with st.spinner("📥 Cloning repository..."):
+                try:
+                    tmp_dir, files = _clone_repo(repo_url.strip())
+                    st.session_state.tmp_dir = tmp_dir
+                    scan_path = tmp_dir
+                    st.success(f"✅ Cloned! Found {len(files)} files")
+                except Exception as e:
+                    st.error(f"❌ Clone failed: {e}")
+                    st.stop()
+        else:
+            if not files_input.strip():
+                st.error("Please enter at least one file path")
+                st.stop()
+            files = [f.strip() for f in files_input.strip().split("\n") if f.strip()]
+
+        with st.spinner("🔍 Running Parser + Guardrails..."):
+            try:
+                _run_phase1(files, scan_path)
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+                st.exception(e)
