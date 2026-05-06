@@ -23,11 +23,20 @@ def _clone_repo(url: str) -> Tuple[str, List[str]]:
 
 def _run_phase1(files: List[str], scan_path: str) -> None:
     from graph.builder import build_graph
-    from state import RepoGuardState
+    from state import AgentState
 
     app = build_graph()
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-    initial_state = RepoGuardState(files=files, scan_path=scan_path)
+    initial_state = AgentState(
+        user_input=" ".join(files),
+        target_files=files,
+        raw_scan_results=[],
+        final_report="",
+        risk_level="normal",
+        risk_reason="",
+        guardrail_status="",
+        error=""
+    )
 
     for _ in app.stream(initial_state, config=config):
         pass
