@@ -121,9 +121,22 @@ python evaluate.py
 ## Project Structure
 ```
 /
-├── main.py                 # Entry point — CLI loop (≤50 lines)
+├── app.py                  # Streamlit entry point — page config, CSS, phase router (≤30 lines)
+├── main.py                 # CLI entry point — interactive loop (≤50 lines)
 ├── config.py               # All tuneable constants (models, limits, timeouts, paths)
 ├── state.py                # Shared LangGraph state schema
+│
+├── ui/                     # Streamlit UI package
+│   ├── state.py            # Session state defaults, cleanup_tmp(), reset()
+│   ├── styles.py           # Dark-theme CSS injection
+│   ├── components/
+│   │   ├── header.py       # Title, caption, architecture expander
+│   │   └── file_list.py    # Reusable file path display component
+│   └── pages/              # One file per UI phase
+│       ├── input_page.py   # Phase 1 — GitHub URL clone or manual file list
+│       ├── approval_page.py # Phase 2 — risk metrics, file review, approve/safe/cancel
+│       ├── scanning_page.py # Phase 3 — invokes graph, waits for result
+│       └── results_page.py  # Phase 4 — renders report, download button
 │
 ├── graph/
 │   └── builder.py          # Assembles and compiles the LangGraph StateGraph
