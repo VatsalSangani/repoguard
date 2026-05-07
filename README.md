@@ -1,3 +1,9 @@
+[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](http://13.134.107.196:8090/repoguard)
+
+> **Try it live** → [http://13.134.107.196:8090/repoguard](http://13.134.107.196:8090/repoguard)
+
+---
+
 # 🛡️ RepoGuard: Neuro-Symbolic Security Agent
 
 **RepoGuard** is an advanced autonomous AI agent designed to audit codebases for security vulnerabilities, exposed secrets, and code quality issues.
@@ -189,4 +195,3 @@ We measure the agent's performance on 4 key metrics:
 *  **Additional file types:** Add more file types like .java, .json, .css, .yaml, etc.
 
 
-# CI/CD enabled
