@@ -89,6 +89,7 @@ python main.py
 * **Safe Mode:** If it detects secrets, it will ask: "[Y]es, [S]afe Scan, or [N]o?"
 * **Output:** Findings are saved to scan_report.md.
 
+![Demo in Streamlit](https://github.com/VatsalSangani/repoguard/blob/main/Repoguard%20Screenshot.png)
 ![Demo 1 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%201.png)
 ![Demo 2 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%202.png)
 ![Demo 3 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%203.png)
