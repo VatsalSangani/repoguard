@@ -7,20 +7,27 @@ from typing import List, Tuple
 
 import streamlit as st
 
+from config import SUPPORTED_EXTENSIONS
 from observability.run_metadata import as_langgraph_config, build_run_metadata
 from ui.components.badges import render_language_badges, render_language_tools_table
 
 
 def _clone_repo(url: str) -> Tuple[str, List[str]]:
+    """Clone `url` into a temp dir and return (tmp_dir, preview_files).
+
+    `preview_files` is ONLY for the "Cloned! Found N files" message shown
+    right after cloning — the actual scan re-derives the file list from
+    `tmp_dir` itself via the real parser walk (see `_run_phase1`), so this
+    preview uses the same SUPPORTED_EXTENSIONS the parser will actually use
+    instead of a separate, easily-drifting extension list.
+    """
     import git
     tmp_dir = tempfile.mkdtemp()
     git.Repo.clone_from(url, tmp_dir)
-    files: List[str] = []
-    for ext in ["*.py", "*.md", "*.txt", "*.yml", "*.yaml", "*.env"]:
-        files.extend(
-            str(p) for p in Path(tmp_dir).rglob(ext)
-            if ".git" not in str(p)
-        )
+    files: List[str] = [
+        str(p) for p in Path(tmp_dir).rglob("*")
+        if p.is_file() and p.name.endswith(SUPPORTED_EXTENSIONS) and ".git" not in str(p)
+    ]
     return tmp_dir, files
 
 
@@ -29,11 +36,28 @@ def _run_phase1(files: List[str], scan_path: str) -> None:
     from state import AgentState
 
     app = build_graph()
-    run_metadata = build_run_metadata(scan_path or " ".join(files))
+
+    if scan_path:
+        # GitHub URL mode: hand the parser the real directory so it does
+        # its own recursive walk (respecting IGNORED_DIRS/SUPPORTED_EXTENSIONS
+        # and reporting file_discovery_stats) instead of guessing a path
+        # from a mangled, space-joined string of every file we pre-found.
+        user_input = scan_path
+        initial_target_files: List[str] = []
+        run_metadata = build_run_metadata(scan_path)
+    else:
+        # File List mode: the user already gave us the exact files to scan
+        # — there's no single directory to walk, so pass them through
+        # as-is; parser_node trusts a pre-populated target_files list
+        # instead of trying to resolve one from user_input.
+        user_input = ""
+        initial_target_files = files
+        run_metadata = build_run_metadata(files[0] if files else "manual-file-list")
+
     config = as_langgraph_config(run_metadata, thread_id=str(uuid.uuid4()))
     initial_state = AgentState(
-        user_input=" ".join(files),
-        target_files=files,
+        user_input=user_input,
+        target_files=initial_target_files,
         raw_scan_results=[],
         final_report="",
         risk_level="normal",

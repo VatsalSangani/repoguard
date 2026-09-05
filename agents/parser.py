@@ -39,6 +39,15 @@ def parser_node(state: AgentState) -> dict:
     user_input = state["user_input"].strip()
     run_metadata = state.get("run_metadata") or build_run_metadata(user_input)
 
+    pre_resolved = state.get("target_files") or []
+    if pre_resolved:
+        # The caller already resolved the exact files to scan (e.g. the
+        # UI's explicit "File List" input mode, where the user typed
+        # specific paths — there is no single directory to walk, and
+        # `user_input` may not even be a valid filesystem path in this
+        # case). Trust it as-is instead of re-deriving from user_input.
+        return _finalize(pre_resolved, len(pre_resolved), len(pre_resolved), run_metadata, user_input)
+
     # Hard logic: try direct filesystem resolution first
     files, total_found = _resolve_path(user_input)
 
@@ -64,10 +73,15 @@ def parser_node(state: AgentState) -> dict:
             files.extend(matched)
             total_found += seen
 
+    return _finalize(files, total_found, len(set(files)), run_metadata, user_input)
+
+
+def _finalize(
+    files: List[str], total_found: int, matched_extensions: int, run_metadata: dict, user_input: str
+) -> dict:
     # Deduplicate and cap — sorted() (not a bare set()) so the same files
     # survive every run in the same order, instead of whichever 30 a
     # non-deterministic set iteration happens to slice off.
-    matched_extensions = len(set(files))
     files = sorted(set(files))
     dropped_by_limit = max(matched_extensions - MAX_FILES_LIMIT, 0)
     if dropped_by_limit:
