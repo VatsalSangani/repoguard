@@ -1,0 +1,56 @@
+{
+  "fixture": "json_invalid",
+  "file_manifest": {
+    "py": [],
+    "sql": [],
+    "js": [],
+    "json": [
+      "api-spec.json",
+      "config.json"
+    ]
+  },
+  "expected_findings": [
+    {
+      "file": "api-spec.json",
+      "line": 1,
+      "rule": "oas3-api-servers",
+      "severity": "medium",
+      "tool": "validate_json",
+      "message": "OpenAPI \"servers\" must be present and non-empty array."
+    },
+    {
+      "file": "api-spec.json",
+      "line": 3,
+      "rule": "info-contact",
+      "severity": "medium",
+      "tool": "validate_json",
+      "message": "Info object must have \"contact\" object."
+    },
+    {
+      "file": "api-spec.json",
+      "line": 3,
+      "rule": "info-description",
+      "severity": "medium",
+      "tool": "validate_json",
+      "message": "Info \"description\" must be present and non-empty string."
+    },
+    {
+      "file": "api-spec.json",
+      "line": 3,
+      "rule": "oas3-schema",
+      "severity": "high",
+      "tool": "validate_json",
+      "message": "\"info\" property must have required property \"version\"."
+    },
+    {
+      "file": "config.json",
+      "line": 5,
+      "rule": "INVALID_JSON",
+      "severity": "high",
+      "tool": "validate_json",
+      "message": "Malformed JSON: Expecting property name enclosed in double quotes"
+    }
+  ],
+  "expected_finding_count": 5,
+  "expected_false_positives": 0
+}

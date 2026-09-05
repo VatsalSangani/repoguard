@@ -51,11 +51,19 @@ def secrets_scan_impl(target: str) -> Dict[str, Any]:
             "DETECT_SECRETS_NOT_INSTALLED", "detect-secrets not found.", start
         )
 
+    # detect-secrets silently returns zero results when given an absolute
+    # path (a known quirk of how it computes relative paths internally) —
+    # so it must be invoked with cwd set to the scan root and given a
+    # relative target, exactly like the ESLint MCP server's base-path fix.
+    resolved = p.resolve()
+    scan_root = resolved if resolved.is_dir() else resolved.parent
+    rel_target = "." if resolved.is_dir() else resolved.name
+
     cmd = [
         detect_secrets_path, "scan",
         "--all-files",
         "--exclude-files", SECRETS_EXCLUDE_REGEX,
-        str(p.resolve()),
+        rel_target,
     ]
 
     try:
@@ -65,7 +73,7 @@ def secrets_scan_impl(target: str) -> Dict[str, Any]:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd=os.getcwd(),
+            cwd=str(scan_root),
             timeout=SECRETS_SCAN_TIMEOUT,
             check=False,
         )
@@ -84,7 +92,7 @@ def secrets_scan_impl(target: str) -> Dict[str, Any]:
                 "severity": "critical",
                 "code": finding.get("type", "SECRET"),
                 "message": "Potential secret detected",
-                "file": file_path,
+                "file": str(scan_root / file_path),
                 "line": finding.get("line_number"),
             }
             for file_path, findings in results.items()

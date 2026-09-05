@@ -1,0 +1,49 @@
+{
+  "fixture": "js_vulnerabilities",
+  "file_manifest": {
+    "py": [],
+    "sql": [],
+    "js": [
+      "utils/parser.js",
+      "config/settings.js",
+      "api/handler.js"
+    ],
+    "json": []
+  },
+  "expected_findings": [
+    {
+      "file": "api/handler.js",
+      "line": 6,
+      "rule": "security/detect-object-injection",
+      "severity": "medium",
+      "tool": "lint_javascript",
+      "message": "Generic Object Injection Sink"
+    },
+    {
+      "file": "api/handler.js",
+      "line": 6,
+      "rule": "security/detect-object-injection",
+      "severity": "medium",
+      "tool": "lint_javascript",
+      "message": "Generic Object Injection Sink"
+    },
+    {
+      "file": "config/settings.js",
+      "line": 4,
+      "rule": "Secret Keyword",
+      "severity": "high",
+      "tool": "detect-secrets",
+      "message": "Potential secret detected"
+    },
+    {
+      "file": "utils/parser.js",
+      "line": 8,
+      "rule": "security/detect-eval-with-expression",
+      "severity": "medium",
+      "tool": "lint_javascript",
+      "message": "eval with argument of type Identifier"
+    }
+  ],
+  "expected_finding_count": 4,
+  "expected_false_positives": 0
+}

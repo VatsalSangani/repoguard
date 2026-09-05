@@ -1,0 +1,15 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Fixture API",
+    "version": "1.0.0",
+    "description": "A minimal, spec-compliant fixture API.",
+    "contact": {
+      "name": "Fixture Maintainers"
+    }
+  },
+  "servers": [
+    { "url": "https://api.fixture.example.com" }
+  ],
+  "paths": {}
+}

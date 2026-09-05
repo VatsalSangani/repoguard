@@ -11,3 +11,5 @@ uv
 langsmith==0.6.4
 fastmcp==2.14.3
 sqlfluff==4.3.0
+pytest==9.1.1
+pytest-timeout==2.4.0

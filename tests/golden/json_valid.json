@@ -1,0 +1,15 @@
+{
+  "fixture": "json_valid",
+  "file_manifest": {
+    "py": [],
+    "sql": [],
+    "js": [],
+    "json": [
+      "config.json",
+      "api-spec.json"
+    ]
+  },
+  "expected_findings": [],
+  "expected_finding_count": 0,
+  "expected_false_positives": 0
+}

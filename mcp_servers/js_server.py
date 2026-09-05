@@ -24,10 +24,16 @@ _JS_EXTENSIONS = (".js", ".jsx", ".ts", ".tsx")
 _SEVERITY_MAP = {2: "high", 1: "medium"}  # ESLint: 2 = error, 1 = warn
 
 
-def _run_eslint(paths: List[str]) -> subprocess.CompletedProcess:
+def _run_eslint(paths: List[str], cwd: str) -> subprocess.CompletedProcess:
+    # ESLint's flat config refuses to lint files outside its "base path",
+    # which defaults to the process cwd — NOT the config file's own
+    # directory. Since RepoGuard scans arbitrary target repos that live
+    # outside this project entirely, we always launch eslint with cwd set
+    # to the target's own directory (passing the config by absolute path
+    # still works regardless of cwd).
     return subprocess.run(
         [str(_ESLINT_BIN), "--no-config-lookup", "-c", str(_ESLINT_CONFIG), "--format", "json", *paths],
-        capture_output=True, text=True, cwd=str(_REPO_ROOT), timeout=30, check=False,
+        capture_output=True, text=True, cwd=cwd, timeout=30, check=False,
     )
 
 
@@ -89,8 +95,9 @@ def lint_javascript(path: str) -> Dict[str, Any]:
     if not files:
         return {"findings": []}
 
+    target_dir = str(target if target.is_dir() else target.parent)
     try:
-        proc = _run_eslint([str(f) for f in files])
+        proc = _run_eslint([str(f) for f in files], cwd=target_dir)
     except subprocess.TimeoutExpired:
         return {"findings": [{
             "file": path, "line": 1, "rule": "ESLINT_TIMEOUT", "severity": "high",
