@@ -20,6 +20,7 @@ class AgentState(TypedDict, total=False):
 
     # Pipeline Data
     target_files: List[str]                          # List of files to scan
+    file_discovery_stats: Dict[str, int]              # {total_found, matched_extensions, scanning, dropped_by_limit}
     raw_scan_results: Annotated[List[Dict[str, Any]], operator.add] # Accumulates tool logs
     final_report: str                                # Markdown output
 

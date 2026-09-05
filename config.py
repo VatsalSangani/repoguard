@@ -15,6 +15,7 @@ IGNORED_DIRS: set[str] = {
 SUPPORTED_EXTENSIONS: tuple[str, ...] = (
     ".py", ".md", ".env", ".json", ".txt",
     ".sql", ".js", ".jsx", ".ts", ".tsx",  # Phase 1: SQL/JS/TS router support
+    ".yaml", ".yml",
 )
 
 # Guardrails
