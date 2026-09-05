@@ -1,0 +1,57 @@
+{
+  "fixture": "sql_antipatterns",
+  "file_manifest": {
+    "py": [],
+    "sql": [
+      "queries/fetch_users.sql",
+      "migrations/001.sql",
+      "queries/update_orders.sql"
+    ],
+    "js": [],
+    "json": []
+  },
+  "expected_findings": [
+    {
+      "file": "migrations/001.sql",
+      "line": 1,
+      "rule": "LT09",
+      "severity": "medium",
+      "tool": "lint_sql",
+      "message": "Select targets should be on a new line unless there is only one select target."
+    },
+    {
+      "file": "migrations/001.sql",
+      "line": 1,
+      "rule": "LT14",
+      "severity": "medium",
+      "tool": "lint_sql",
+      "message": "The 'where' keyword should always start a new line."
+    },
+    {
+      "file": "queries/fetch_users.sql",
+      "line": 1,
+      "rule": "AM04",
+      "severity": "medium",
+      "tool": "lint_sql",
+      "message": "Query produces an unknown number of result columns."
+    },
+    {
+      "file": "queries/fetch_users.sql",
+      "line": 1,
+      "rule": "LT14",
+      "severity": "medium",
+      "tool": "lint_sql",
+      "message": "The 'WHERE' keyword should always start a new line."
+    },
+    {
+      "file": "queries/update_orders.sql",
+      "line": 3,
+      "rule": "AM04",
+      "severity": "medium",
+      "tool": "lint_sql",
+      "message": "Query produces an unknown number of result columns."
+    }
+  ],
+  "expected_finding_count": 5,
+  "expected_false_positives": 0
+}

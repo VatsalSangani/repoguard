@@ -1,0 +1,16 @@
+{
+  "fixture": "python_clean",
+  "file_manifest": {
+    "py": [
+      "utils/__init__.py",
+      "utils/strings.py",
+      "main.py"
+    ],
+    "sql": [],
+    "js": [],
+    "json": []
+  },
+  "expected_findings": [],
+  "expected_finding_count": 0,
+  "expected_false_positives": 0
+}

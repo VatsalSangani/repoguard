@@ -22,6 +22,14 @@ scan_report.md
 test_repo/
 test_repov2/
 test_repov3_stress/
+test_repo_multilang/
+
+# --- Node tooling (Phase 1: eslint/ajv/spectral) ---
+# Dependencies are pinned in package.json; installed via `npm install`.
+node_modules/
+
+# --- Observability logs (Phase 0) ---
+logs/
 
 # --- OS Junk ---
 .DS_Store

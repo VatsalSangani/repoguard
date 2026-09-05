@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "f2p: fail-to-pass tests — pipeline must detect known issues",
+    "p2p: pass-to-pass tests — pipeline must not false-positive",
+    "mcp: MCP tool integration tests",
+    "state: state schema integrity tests",
+    "determinism: reproducibility tests",
+]

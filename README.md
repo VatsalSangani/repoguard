@@ -1,198 +1,141 @@
-[![Live Demo](https://img.shields.io/badge/AWS%20EC2-Live%20Demo-orange)](https://46kclo66ry2ptmxgwckb6ben4a0mdfsq.lambda-url.eu-west-2.on.aws/?p=repoguard)
+# RepoGuard
 
-> **Try it live** → [Click here](https://46kclo66ry2ptmxgwckb6ben4a0mdfsq.lambda-url.eu-west-2.on.aws/?p=repoguard)
-
----
-
-# 🛡️ RepoGuard: Neuro-Symbolic Security Agent
-
-**RepoGuard** is an advanced autonomous AI agent designed to audit codebases for security vulnerabilities, exposed secrets, and code quality issues.
-
-Unlike traditional static analysis tools that blindly scan every file, RepoGuard uses a **Multi-Agent Neuro-Symbolic Architecture**. It combines the reasoning capabilities of Large Language Models (LLMs) to understand context and intent, with the reliability of deterministic industry-standard tools (Ruff, Detect-Secrets) to execute precise scans.
-
-It features **Human-in-the-Loop (HIL)** controls for high-risk operations and an **Automated Evaluation Suite** to prevent hallucinations.
-
----
-
-## Key Features
-
-* **Multi-Agent Orchestration:** A sequential chain of specialized agents (Parser → Guardrails → Processor → Aggregator) built with **LangGraph**.
-* **Intelligent Routing:** Uses "1-to-Many" routing logic. A single file can be routed to multiple tools simultaneously (e.g., a Python file is checked for *both* syntax errors and hardcoded secrets).
-* **Human-in-the-Loop (HIL):** The agent autonomously pauses and requests user approval before processing high-risk files (like `.env` or auth logic). Includes a "Safe Scan" mode to auto-sanitize inputs.
-* **Automated Evaluation Suite:** Includes a built-in `evaluate.py` script that uses a secondary "Judge LLM" (GPT-4o-mini) to grade the agent's reporting accuracy and hallucination rate.
-* **Deep Analysis:**
-    * **Python:** Syntax & Logic checks via Ruff.
-    * **Secrets:** Entropy and pattern-based secret detection.
-    * **Markdown:** Documentation standards and formatting validation.
-
----
+Multi-agent code security scanner built with LangGraph and MCP.
 
 ## Architecture
 
-RepoGuard operates as a state-based graph application:
-
 ```mermaid
-graph LR
-    User -->|Input Path| Parser(Parser Agent)
-    Parser -->|File List| Guard{Guardrails}
-    Guard -- High Risk --> HIL[Human Approval]
-    Guard -- Safe --> Proc(Processing Agent)
-    HIL -- "Safe Scan" --> Filter[Remove Secrets]
-    Filter --> Proc
-    HIL -- Approved --> Proc
-    Proc -->|1-to-Many Routing| Tools[Tools Execution]
-    Tools -->|Raw Logs| Agg(Aggregator Agent)
-    Agg -->|Final Report| Report[scan_report.md]
+flowchart TD
+    Parser["Parser Agent<br/>discovers files, filters by extension"]
+    Guardrails["Guardrails Agent<br/>flags sensitive files, assesses risk"]
+    HITL{{"Human Approval<br/>(HITL)"}}
+    Router["Router Agent<br/>groups files by language, secrets pre-scan"]
+    PyAgent["Python Agent<br/>Ruff + detect-secrets"]
+    SqlAgent["SQL Agent<br/>sqlfluff"]
+    JsAgent["JS/TS Agent<br/>ESLint + eslint-plugin-security"]
+    JsonAgent["JSON Agent<br/>ajv + Spectral"]
+    Aggregator["Aggregator Agent<br/>GPT-4o-mini report generation"]
+
+    Parser --> Guardrails --> HITL
+    HITL -->|Approve / Safe Scan| Router
+    HITL -->|Reject| End(["Scan cancelled"])
+    Router --> PyAgent --> Aggregator
+    Router --> SqlAgent --> Aggregator
+    Router --> JsAgent --> Aggregator
+    Router --> JsonAgent --> Aggregator
 ```
 
-## The Agent Squad
+Text form: `Parser → Guardrails → HITL → Router → [Python Agent | SQL Agent | JS Agent | JSON Agent] → Aggregator`
 
-* **Parser Agent:** Intelligently maps the target directory, ignoring noise (binaries, .venv) and handling user intent.
-* **Guardrails:** A safety layer that flags sensitive files (.env, id_rsa) and triggers the Human-in-the-Loop intervention.
-* **Processing Agent:** The "Router." It inspects each file and selects the correct combination of tools (e.g., ["python", "secrets"] for main.py).
-* **Aggregator Agent:** A writer agent that synthesizes raw JSON tool logs into a professional, actionable Markdown report.
+Only sub-agents for languages actually present in the target repo run — the Router dynamically fans out to a subset of `{Python, SQL, JS, JSON}` agents, and the Aggregator waits only on the branches that were dispatched.
 
----
+## Features
 
-## Installation
-**Prerequisites**
-* Python 3.10+
-* Git
+- **Multi-language support** — Python, SQL, JavaScript/TypeScript, and JSON, each routed to a dedicated sub-agent.
+- **MCP tool integration with wire logging** — every MCP JSON-RPC call (`initialize`, `tools/list`, `tools/call`) is logged to `logs/{run_id}/mcp_wire.jsonl` with full request/response envelopes and latency.
+- **Human-in-the-loop approval** — the pipeline pauses before scanning for an explicit choice: Approve Full Scan, Safe Scan (exclude sensitive files), or Reject.
+- **Scan coverage verification** — cross-checks the Router's file manifest against actual tool results so a sub-agent that silently fails to complete is caught and reported, not lost.
+- **LangSmith tracing with custom metadata** — every run is tagged with `run_id`, `repo_name`, and `commit_sha` via `RunnableConfig`, visible on every node's trace.
+- **Session reuse for performance** — each language sub-agent opens one MCP session and reuses it across every file it scans, instead of spawning a new subprocess per file.
+- **F2P/P2P test suites** — 54 tests across fail-to-pass, pass-to-pass, MCP integration, state integrity, and determinism, run against real fixture repos with no mocking.
 
-1. Clone the Repository
-```
-git clone https://github.com/VatsalSangani/repoguard.git
+## Tech Stack
+
+- **[LangGraph](https://github.com/langchain-ai/langgraph)** — the agent graph, state schema, and human-in-the-loop checkpointing
+- **[Streamlit](https://streamlit.io/)** — the web UI
+- **[FastMCP](https://github.com/jlowin/fastmcp)** — authoring the SQL/JS/JSON MCP servers
+- **[LangSmith](https://smith.langchain.com/)** — tracing and observability
+- **OpenAI GPT-4o-mini** — file-path interpretation and report generation
+
+## MCP Tools
+
+| Tool | Language | Purpose |
+|---|---|---|
+| Ruff | Python | Linting, style, and correctness checks |
+| detect-secrets | All | Hardcoded credential and secret scanning |
+| sqlfluff | SQL | SQL linting and anti-pattern detection |
+| ESLint + eslint-plugin-security | JavaScript/TypeScript | Security-focused linting (unsafe eval, non-literal `child_process`, etc.) |
+| ajv + Spectral | JSON | JSON Schema validation and OpenAPI/AsyncAPI spec linting |
+
+## Setup
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 20+ / npm (for the JS/JSON MCP tooling)
+- An OpenAI API key
+- (Optional) A LangSmith API key for tracing
+
+### Install
+
+```bash
+git clone <this-repo-url>
 cd repoguard
-```
-2. Install Dependencies
-```
+
 pip install -r requirements.txt
+npm install
 ```
 
-3. Setup Environment Variables
-Create a .env file in the root directory:
+### Environment variables
+
+Create a `.env` file in the project root:
+
 ```
-OPENAI_API_KEY=sk-proj-your-key-here
-# Optional: Enable tracing for debugging
-LANGCHAIN_TRACING_V2=true
+OPENAI_API_KEY=sk-...
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_PROJECT=repoguard
 ```
 
----
+`LANGSMITH_*` variables are optional — the pipeline runs without them, just without tracing.
 
-## Usage and Demo
-**Run a Security Scan**
-To start the interactive agent:
-```
+### Run
+
+```bash
+# Web UI
+streamlit run app.py
+
+# CLI
 python main.py
 ```
-* **Interactive Mode:** The agent will ask for a folder path.
-* **Safe Mode:** If it detects secrets, it will ask: "[Y]es, [S]afe Scan, or [N]o?"
-* **Output:** Findings are saved to scan_report.md.
 
-![Demo in Streamlit](https://github.com/VatsalSangani/repoguard/blob/main/Repoguard%20Screenshot.png)
-![Demo 1 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%201.png)
-![Demo 2 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%202.png)
-![Demo 3 in CLI](https://github.com/VatsalSangani/repoguard/blob/main/Demo%20Image%203.png)
+## Tests
 
----
-
-## Observability & Performance Metrics
-RepoGuard includes enterprise-grade observability powered by LangSmith. This allows us to trace the agent's "thought process," monitor token usage, and optimize latency for real-world deployment.
-
-The screenshots below demonstrate a live tracing of the same demo example we have used above:
-
-![Tracing 1](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%201.png)
-![Tracing 2](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%202.png)
-![Tracing 3](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%203.png)
-![Tracing 4](https://github.com/VatsalSangani/repoguard/blob/main/Langsmith%20Tracing%204.png)
-
-* **Cost:** The entire audit (Plan → Execute → Judge) runs for < $0.01 (approx 35k tokens) by leveraging optimized prompts and gpt-4o-mini.
-
-* **Latency:** The graph handles long-running async operations (tool execution) while maintaining a responsive 1-2 second planning phase.
-
----
-
-## Run the Evaluation Suite
-To verify the agent's logic against a golden dataset:
+```bash
+pytest tests/ -v --timeout=120
 ```
-# 1. Generate the test data (includes binaries & fake secrets)
-python create_test_repo.py
 
-# 2. Run the evaluator
-python evaluate.py
-```
-**What it does:** Runs the agent in headless mode against test_repov3_stress and uses an LLM Judge to score the output (0-100).
+54 tests, no mocking — every test runs the real pipeline against real fixture repos and real MCP tool execution:
 
----
+- **Fail-to-pass (`test_fail_to_pass.py`)** — every planted issue in a dirty fixture must be detected with the correct file, line, rule, and severity.
+- **Pass-to-pass (`test_pass_to_pass.py`)** — clean fixtures must produce zero findings.
+- **MCP integration (`test_mcp_integration.py`)** — each MCP tool tested in isolation: structured output, empty input, timeout, invalid path.
+- **State integrity (`test_state_integrity.py`)** — Pydantic validation at every node boundary, no cross-agent key clobbering, correct Router dispatch.
+- **Determinism (`test_determinism.py`)** — the same fixture run three times must produce identical findings.
+
+Fixtures live in `tests/fixtures/`; expected outputs in `tests/golden/` are generated from real pipeline runs via `tests/generate_goldens.py`.
 
 ## Project Structure
+
 ```
-/
-├── app.py                  # Streamlit entry point — page config, CSS, phase router (≤30 lines)
-├── main.py                 # CLI entry point — interactive loop (≤50 lines)
-├── config.py               # All tuneable constants (models, limits, timeouts, paths)
-├── state.py                # Shared LangGraph state schema
-│
-├── ui/                     # Streamlit UI package
-│   ├── state.py            # Session state defaults, cleanup_tmp(), reset()
-│   ├── styles.py           # Dark-theme CSS injection
-│   ├── components/
-│   │   ├── header.py       # Title, caption, architecture expander
-│   │   └── file_list.py    # Reusable file path display component
-│   └── pages/              # One file per UI phase
-│       ├── input_page.py   # Phase 1 — GitHub URL clone or manual file list
-│       ├── approval_page.py # Phase 2 — risk metrics, file review, approve/safe/cancel
-│       ├── scanning_page.py # Phase 3 — invokes graph, waits for result
-│       └── results_page.py  # Phase 4 — renders report, download button
-│
-├── graph/
-│   └── builder.py          # Assembles and compiles the LangGraph StateGraph
-│
-├── agents/                 # One file per agent node
-│   ├── parser.py           # File discovery & filtering
-│   ├── guardrails.py       # Risk detection & safety routing
-│   ├── processor.py        # LLM-based tool routing + execution
-│   └── aggregator.py       # Synthesises raw logs into a Markdown report
-│
-├── tools/                  # One file per tool
-│   ├── markdown_tool.py    # PyMarkdownLint wrapper
-│   ├── secrets_tool.py     # Detect-Secrets wrapper
-│   └── python_tool.py      # Ruff via MCP wrapper
-│
-├── mcp_drivers/
-│   └── mcp_driver.py       # Async MCP client for mcp-server-analyzer
-│
-├── models/
-│   └── schemas.py          # Pydantic data contracts (FileList)
-│
-├── services/
-│   └── report.py           # Saves the final report to disk
-│
-├── evaluate.py             # Automated Testing & LLM-as-a-Judge
-├── create_test_repo.py     # Test data generator
-├── requirements.txt        # Dependencies
-└── scan_report.md          # Output artifact (generated at runtime)
+agents/                 Graph nodes: parser, guardrails, router, aggregator
+agents/lang_agents/     Per-language sub-agents (python, sql, js, json)
+mcp_drivers/            MCP client drivers (base class, wire logging, per-tool drivers)
+mcp_servers/            MCP stdio servers (sqlfluff, ESLint, ajv/Spectral)
+tools/                  Non-MCP tool wrappers (secrets, markdown)
+graph/                  LangGraph StateGraph construction
+models/                 Pydantic schemas (Finding, RunMetadata)
+observability/          LangSmith tracing, run metadata, run-id context
+ui/                     Streamlit app (pages, components, state)
+tests/                  Fixtures, golden outputs, and test suites
 ```
 
----
+## Screenshots
 
-## Evaluation Metrics
-We measure the agent's performance on 4 key metrics:
-1. **Recall:** Did it find 100% of the hidden secrets?
+*(images already present in the repo root)*
 
-2. **Robustness:** Did it handle binary files and deep nesting without crashing?
-
-3. **Tool Accuracy:** Did it select the correct tools (e.g., scanning dangerous.py for both syntax and secrets)?
-
-4. **Faithfulness:** Did the final report accurately reflect the logs without hallucination? (Measured by LLM Judge).
-
----
-
-## Future Roadmap
-* **Docker Support:** Containerize the tool for CI/CD pipelines.
-
-* **Custom Policies:** Allow users to define custom "Risk Rules" via a config file.
-
-*  **Additional file types:** Add more file types like .java, .json, .css, .yaml, etc.
-
-
+- `Repoguard Screenshot.png` — application overview
+- `Demo Image 1.png`, `Demo Image 2.png`, `Demo Image 3.png` — UI walkthrough
+- `Agent Workflow Architecture.png`, `Prototype Architecture.png` — architecture diagrams
+- `Langsmith Tracing 1.png` – `Langsmith Tracing 4.png`, `Langsmith Tracing Results.png`, `Langsmith Results.png` — LangSmith trace examples
