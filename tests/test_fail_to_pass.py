@@ -20,6 +20,7 @@ DIRTY_FIXTURES = [
     "js_vulnerabilities",
     "json_invalid",
     "mixed_repo",
+    "python_unicode",
 ]
 
 
@@ -107,6 +108,30 @@ def test_detects_incomplete_openapi_spec(cached_pipeline_result):
         f"Expected an 'oas3-api-servers' Spectral finding for api-spec.json, got: {findings}"
     )
     assert match["tool"] == "validate_json", f"Expected tool 'validate_json', got '{match['tool']}'"
+
+
+def test_ruff_handles_unicode_content_without_crashing(cached_pipeline_result):
+    """Regression test: on Windows, a spawned MCP server subprocess's stdio
+    defaulted to cp1252 ("charmap"), so any Python file containing emoji or
+    other non-cp1252 characters (e.g. print("✅ Done → next")) crashed Ruff
+    with `'charmap' codec can't encode character ...` instead of producing
+    real findings. Fixed by forcing PYTHONUTF8/PYTHONIOENCODING in the
+    subprocess env (mcp_drivers/base_driver.py). This must keep finding the
+    real F401 issue, not surface a RUFF_TOOL_ERROR/RUFF_SCAN_ERROR."""
+    findings = _findings_for(cached_pipeline_result, "python_unicode")
+
+    crash_findings = [f for f in findings if "RUFF_TOOL_ERROR" in f["rule"] or "RUFF_SCAN_ERROR" in f["rule"]]
+    assert crash_findings == [], (
+        f"Ruff crashed on Unicode content instead of scanning it: {crash_findings}"
+    )
+
+    match = find_finding(findings, file="emoji.py", rule="F401", line=5)
+    assert match is not None, (
+        f"Expected the real F401 unused-import finding for emoji.py despite its "
+        f"emoji/arrow content, got: {findings}"
+    )
+    assert match["severity"] == "high", f"Expected severity 'high', got '{match['severity']}'"
+    assert match["tool"] == "ruff-check", f"Expected tool 'ruff-check', got '{match['tool']}'"
 
 
 # --- Comprehensive sweep: every finding in every golden must be reproduced ---

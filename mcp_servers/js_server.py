@@ -33,7 +33,12 @@ def _run_eslint(paths: List[str], cwd: str) -> subprocess.CompletedProcess:
     # still works regardless of cwd).
     return subprocess.run(
         [str(_ESLINT_BIN), "--no-config-lookup", "-c", str(_ESLINT_CONFIG), "--format", "json", *paths],
-        capture_output=True, text=True, cwd=cwd, timeout=30, check=False,
+        # encoding="utf-8" explicitly — bare text=True decodes with the OS
+        # locale default, which on Windows is cp1252, not UTF-8. ESLint's
+        # JSON output can carry non-ASCII source text (identifiers, string
+        # literals, emoji, etc.) via `source`/`message` fields.
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=cwd, timeout=30, check=False,
     )
 
 

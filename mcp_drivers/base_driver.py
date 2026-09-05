@@ -36,10 +36,21 @@ class BaseMCPDriver:
 
     def __init__(self, run_id: str | None = None) -> None:
         self.run_id = run_id if run_id is not None else current_run_id.get()
+        # On Windows, a spawned Python subprocess's stdio streams default to
+        # the console codepage (cp1252/"charmap") rather than UTF-8 unless
+        # told otherwise — any file content containing non-cp1252 characters
+        # (emoji, arrows, smart quotes, etc.) then crashes the MCP server
+        # with e.g. "'charmap' codec can't encode character '✅'".
+        # Forcing UTF-8 mode here fixes it for every driver that spawns a
+        # subprocess through this base class (Ruff via uvx, and our own
+        # sql/js/json MCP servers), not just Ruff.
+        env = os.environ.copy()
+        env.setdefault("PYTHONUTF8", "1")
+        env.setdefault("PYTHONIOENCODING", "utf-8")
         self.server_params = StdioServerParameters(
             command=self.command,
             args=self.args,
-            env=os.environ.copy(),
+            env=env,
         )
         self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()

@@ -58,7 +58,9 @@ def _ajv_validate(file_path: Path, schema_path: str) -> List[Dict[str, Any]]:
     try:
         proc = subprocess.run(
             [str(_AJV_BIN), "validate", "-s", schema_path, "-d", str(file_path), "--errors=json"],
-            capture_output=True, text=True, cwd=str(_REPO_ROOT), timeout=30, check=False,
+            # encoding="utf-8" explicitly — see js_server.py._run_eslint for why.
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=str(_REPO_ROOT), timeout=30, check=False,
         )
     except subprocess.TimeoutExpired:
         return [{"file": str(file_path), "line": 1, "rule": "AJV_TIMEOUT", "severity": "high", "message": "ajv timed out after 30s"}]
@@ -109,7 +111,9 @@ def _spectral_lint(file_path: Path) -> List[Dict[str, Any]]:
     try:
         proc = subprocess.run(
             [str(_SPECTRAL_BIN), "lint", str(file_path), "-r", str(_SPECTRAL_RULESET), "-f", "json", "-q"],
-            capture_output=True, text=True, cwd=str(_REPO_ROOT), timeout=30, check=False,
+            # encoding="utf-8" explicitly — see js_server.py._run_eslint for why.
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=str(_REPO_ROOT), timeout=30, check=False,
         )
     except subprocess.TimeoutExpired:
         return [{"file": str(file_path), "line": 1, "rule": "SPECTRAL_TIMEOUT", "severity": "high", "message": "spectral timed out after 30s"}]
