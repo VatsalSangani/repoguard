@@ -10,3 +10,4 @@ ruff
 uv
 langsmith==0.6.4
 fastmcp==2.14.3
+sqlfluff==4.3.0

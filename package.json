@@ -1,0 +1,14 @@
+{
+  "name": "repoguard-js-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JS/TS/JSON tooling used by RepoGuard's MCP servers (mcp_servers/js_server.py, json_server.py). Not a runnable app.",
+  "devDependencies": {
+    "eslint": "10.10.0",
+    "eslint-plugin-security": "4.0.1",
+    "@typescript-eslint/parser": "8.69.0",
+    "@typescript-eslint/eslint-plugin": "8.69.0",
+    "ajv-cli": "5.0.0",
+    "@stoplight/spectral-cli": "6.16.3"
+  }
+}

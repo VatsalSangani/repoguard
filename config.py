@@ -12,7 +12,10 @@ IGNORED_DIRS: set[str] = {
     ".git", ".venv", "venv", "env", "node_modules",
     "__pycache__", "dist", "build", ".idea", ".vscode",
 }
-SUPPORTED_EXTENSIONS: tuple[str, ...] = (".py", ".md", ".env", ".json", ".txt")
+SUPPORTED_EXTENSIONS: tuple[str, ...] = (
+    ".py", ".md", ".env", ".json", ".txt",
+    ".sql", ".js", ".jsx", ".ts", ".tsx",  # Phase 1: SQL/JS/TS router support
+)
 
 # Guardrails
 SENSITIVE_KEYWORDS: list[str] = [".env", "secrets", "credentials", "key.pem", "id_rsa"]

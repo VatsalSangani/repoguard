@@ -1,6 +1,19 @@
 import operator
 from typing import TypedDict, List, Annotated, Dict, Any, Optional
 
+
+def _merge_tool_results(
+    a: Dict[str, List[Dict[str, Any]]], b: Dict[str, List[Dict[str, Any]]]
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Reducer for `tool_results`: language sub-agents run concurrently in
+    the same superstep and each writes only its own language key, so a
+    plain dict merge (not last-write-wins) is required — otherwise
+    LangGraph raises a concurrent-update conflict on the shared key."""
+    merged = dict(a or {})
+    merged.update(b or {})
+    return merged
+
+
 class AgentState(TypedDict, total=False):
     # User Input
     user_input: str
@@ -23,5 +36,5 @@ class AgentState(TypedDict, total=False):
     repo_path: str
     file_manifest: Dict[str, List[str]]         # {"py": [...], "sql": [...], "js": [...], "json": [...]}
     guardrail_decisions: Dict[str, List[str]]   # {"safe_scan": [...], "excluded": [...]}
-    tool_results: Dict[str, List[Dict[str, Any]]]  # findings keyed by language
+    tool_results: Annotated[Dict[str, List[Dict[str, Any]]], _merge_tool_results]  # findings keyed by language
     aggregated_report: Optional[Dict[str, Any]]
