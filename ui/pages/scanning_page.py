@@ -5,7 +5,8 @@ import time
 
 import streamlit as st
 
-from ui.components.file_manifest import render_file_status_table, render_language_counts
+from ui.components.coverage import LANG_TO_NODE, NODE_TO_LANG, compute_file_rows, render_coverage_table
+from ui.components.file_manifest import render_language_counts
 from ui.state import cleanup_tmp, record_scan_history, reset
 
 _NODE_LABELS = {
@@ -16,8 +17,6 @@ _NODE_LABELS = {
     "json_agent": "🧾 JSON Agent — ajv + Spectral",
     "aggregator": "📝 Aggregator — generating the security report",
 }
-_LANG_TO_NODE = {"py": "python_agent", "sql": "sql_agent", "js": "js_agent", "json": "json_agent"}
-_NODE_TO_LANG = {v: k for k, v in _LANG_TO_NODE.items()}
 
 
 def _step_html(node: str, status: str) -> str:
@@ -48,14 +47,15 @@ def render() -> None:
             st.markdown("**Pipeline Progress**")
             st.markdown(_step_html("parser", "done"), unsafe_allow_html=True)
             st.markdown(_step_html("guardrails", "done"), unsafe_allow_html=True)
-            for node in ["router"] + [_LANG_TO_NODE[lang] for lang in file_manifest if file_manifest.get(lang)] + ["aggregator"]:
+            for node in ["router"] + [LANG_TO_NODE[lang] for lang in file_manifest if file_manifest.get(lang)] + ["aggregator"]:
                 st.markdown(_step_html(node, node_progress.get(node, "pending")), unsafe_allow_html=True)
 
         with manifest_ph.container():
             if file_manifest:
                 st.markdown("**File Manifest**")
                 render_language_counts(file_manifest)
-                render_file_status_table(file_manifest, tool_results, completed_languages, running_languages)
+                rows = compute_file_rows(file_manifest, tool_results, completed_languages, running_languages)
+                render_coverage_table(rows)
 
         with counters_ph.container():
             elapsed = time.perf_counter() - st.session_state.scan_start_time
@@ -83,19 +83,19 @@ def render() -> None:
                     file_manifest = state_update.get("file_manifest", {}) or file_manifest
                     tool_results.update(state_update.get("tool_results", {}) or {})
                     pending_sub_agents = {
-                        _LANG_TO_NODE[lang] for lang, files in file_manifest.items() if files
+                        LANG_TO_NODE[lang] for lang, files in file_manifest.items() if files
                     }
                     for node in pending_sub_agents:
                         node_progress.setdefault(node, "pending")
                     node_progress["aggregator"] = "pending"
-                    redraw(running_languages=set(_NODE_TO_LANG.get(n) for n in pending_sub_agents))
+                    redraw(running_languages=set(NODE_TO_LANG.get(n) for n in pending_sub_agents))
 
-                elif node_name in _NODE_TO_LANG:
+                elif node_name in NODE_TO_LANG:
                     node_progress[node_name] = "done"
                     tool_results.update(state_update.get("tool_results", {}) or {})
-                    completed_languages.add(_NODE_TO_LANG[node_name])
+                    completed_languages.add(NODE_TO_LANG[node_name])
                     pending_sub_agents.discard(node_name)
-                    redraw(running_languages=set(_NODE_TO_LANG.get(n) for n in pending_sub_agents))
+                    redraw(running_languages=set(NODE_TO_LANG.get(n) for n in pending_sub_agents))
 
                 elif node_name == "aggregator":
                     node_progress["aggregator"] = "done"
