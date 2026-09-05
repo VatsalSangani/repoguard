@@ -8,3 +8,5 @@ pymarkdownlnt>=0.9.6
 detect-secrets
 ruff
 uv
+langsmith==0.6.4
+fastmcp==2.14.3

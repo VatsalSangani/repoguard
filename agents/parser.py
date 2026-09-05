@@ -5,6 +5,8 @@ from langchain_openai import ChatOpenAI
 
 from config import DEFAULT_MODEL, IGNORED_DIRS, LLM_TEMPERATURE, MAX_FILES_LIMIT, SUPPORTED_EXTENSIONS
 from models.schemas import FileList
+from observability.run_metadata import build_run_metadata
+from observability.tracing import traced_node
 from state import AgentState
 
 
@@ -26,9 +28,11 @@ def _resolve_path(path: str) -> List[str]:
     return []
 
 
+@traced_node("parser")
 def parser_node(state: AgentState) -> dict:
     print("\n--- 🔍 Step 1: Parser Agent ---")
     user_input = state["user_input"].strip()
+    run_metadata = state.get("run_metadata") or build_run_metadata(user_input)
 
     # Hard logic: try direct filesystem resolution first
     files = _resolve_path(user_input)
@@ -58,4 +62,4 @@ def parser_node(state: AgentState) -> dict:
         files = files[:MAX_FILES_LIMIT]
 
     print(f"   Targeting {len(files)} files.")
-    return {"target_files": files}
+    return {"target_files": files, "run_metadata": run_metadata, "repo_path": user_input}

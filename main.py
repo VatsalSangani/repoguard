@@ -2,21 +2,29 @@ import uuid
 from dotenv import load_dotenv
 from config import SAFE_SCAN_EXCLUDES
 from graph.builder import build_graph
+from observability.run_metadata import as_langgraph_config, build_run_metadata
 from services.report import save_report
 
 load_dotenv()
 
 def run_cli() -> None:
     app = build_graph()
-    cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
     print("=== 🛡️ RepoGuard: AI Security Agent ===")
     while True:
         path = input("\nRepoGuard > Enter path to scan (or 'q' to quit): ").strip()
         if path.lower() == "q":
             break
+        run_metadata = build_run_metadata(path)
+        cfg = as_langgraph_config(run_metadata, thread_id=str(uuid.uuid4()))
         print("\n🚀 Phase 1: Planning...")
         for _ in app.stream(
-            {"user_input": path, "target_files": [], "raw_scan_results": [], "risk_level": "normal"},
+            {
+                "user_input": path,
+                "target_files": [],
+                "raw_scan_results": [],
+                "risk_level": "normal",
+                "run_metadata": run_metadata,
+            },
             config=cfg,
         ):
             pass

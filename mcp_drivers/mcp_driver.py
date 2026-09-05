@@ -1,41 +1,21 @@
-import asyncio
-import os
-from contextlib import AsyncExitStack
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-
-from config import MCP_COMMAND, MCP_SERVER, MCP_TOOL_NAME, MCP_TOOL_ARG
+from config import MCP_COMMAND, MCP_SERVER, MCP_TOOL_ARG, MCP_TOOL_NAME
+from mcp_drivers.base_driver import BaseMCPDriver
 
 
-class RuffMCPDriver:
-    def __init__(self) -> None:
-        self.server_params = StdioServerParameters(
-            command=MCP_COMMAND,
-            args=[MCP_SERVER],
-            env=os.environ.copy(),
-        )
-        self.session: ClientSession | None = None
-        self.exit_stack = AsyncExitStack()
+class RuffMCPDriver(BaseMCPDriver):
+    server_name = "ruff"
+    command = MCP_COMMAND
+    args = [MCP_SERVER]
 
     async def run_scan(self, code_content: str) -> list:
-        """Connect to the MCP server, send code content, return results."""
-        try:
-            transport = await self.exit_stack.enter_async_context(
-                stdio_client(self.server_params)
-            )
-            self.session = await self.exit_stack.enter_async_context(
-                ClientSession(transport[0], transport[1])
-            )
-            await self.session.initialize()
+        """One-shot: connect, scan a single snippet, disconnect.
 
-            result = await self.session.call_tool(
-                MCP_TOOL_NAME,
-                arguments={MCP_TOOL_ARG: code_content},
-            )
-            return result.content
+        Prefer `async with RuffMCPDriver() as driver:` + `run_scan_in_session`
+        when scanning multiple files, so one subprocess is reused instead of
+        spawning a new `uvx mcp-server-analyzer` process per file.
+        """
+        return await self.call_tool(MCP_TOOL_NAME, {MCP_TOOL_ARG: code_content})
 
-        except Exception:
-            raise
-        finally:
-            await self.exit_stack.aclose()
+    async def run_scan_in_session(self, code_content: str) -> list:
+        """Scan a single snippet on the session opened by `async with`."""
+        return await self.call_tool_in_session(MCP_TOOL_NAME, {MCP_TOOL_ARG: code_content})

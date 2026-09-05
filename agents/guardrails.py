@@ -1,7 +1,9 @@
 from config import SENSITIVE_KEYWORDS
+from observability.tracing import traced_node
 from state import AgentState
 
 
+@traced_node("guardrails")
 def guardrail_node(state: AgentState) -> dict:
     print("\n--- 🛡️ Step 1.5: Guardrails ---")
     files = state.get("target_files", [])

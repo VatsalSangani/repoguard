@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from config import DEFAULT_MODEL, LLM_TEMPERATURE, MAX_REPORT_INPUT_CHARS
+from observability.tracing import traced_node
 from state import AgentState
 
 _SYSTEM_PROMPT = (
@@ -14,6 +15,7 @@ _SYSTEM_PROMPT = (
 )
 
 
+@traced_node("aggregator")
 def aggregator_node(state: AgentState) -> dict:
     print("\n--- 📝 Step 3: Aggregator Agent ---")
     llm = ChatOpenAI(model=DEFAULT_MODEL, temperature=LLM_TEMPERATURE)
