@@ -12,10 +12,12 @@ st.set_page_config(page_title="RepoGuard", page_icon="🛡️", layout="wide")
 from ui.styles import inject
 from ui.state import init_state
 from ui.components.header import render_header
+from ui.components.sidebar import render_sidebar
 from ui.pages import input_page, approval_page, scanning_page, results_page
 
 inject()
 init_state()
+render_sidebar()
 render_header()
 
 _PAGES = {

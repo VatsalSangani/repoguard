@@ -1,4 +1,4 @@
-"""Phase 1 — GitHub URL or manual file list input."""
+"""Input Page — repo URL/path input, supported-language overview."""
 
 import tempfile
 import uuid
@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import List, Tuple
 
 import streamlit as st
+
+from observability.run_metadata import as_langgraph_config, build_run_metadata
+from ui.components.badges import render_language_badges, render_language_tools_table
 
 
 def _clone_repo(url: str) -> Tuple[str, List[str]]:
@@ -26,7 +29,8 @@ def _run_phase1(files: List[str], scan_path: str) -> None:
     from state import AgentState
 
     app = build_graph()
-    config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    run_metadata = build_run_metadata(scan_path or " ".join(files))
+    config = as_langgraph_config(run_metadata, thread_id=str(uuid.uuid4()))
     initial_state = AgentState(
         user_input=" ".join(files),
         target_files=files,
@@ -35,7 +39,8 @@ def _run_phase1(files: List[str], scan_path: str) -> None:
         risk_level="normal",
         risk_reason="",
         guardrail_status="",
-        error=""
+        error="",
+        run_metadata=run_metadata,
     )
 
     for _ in app.stream(initial_state, config=config):
@@ -45,12 +50,31 @@ def _run_phase1(files: List[str], scan_path: str) -> None:
     st.session_state.app_graph = app
     st.session_state.thread_config = config
     st.session_state.snapshot = snapshot
+    st.session_state.run_metadata = run_metadata
+    st.session_state.node_progress = {"parser": "done", "guardrails": "done"}
     st.session_state.phase = "approval"
     st.rerun()
 
 
 def render() -> None:
-    st.subheader("📁 Repository Input")
+    st.markdown(
+        "<div class='rg-card'>"
+        "<h4>📁 Scan a Repository</h4>"
+        "<p style='color:#8b949e;margin-bottom:0.25rem;'>"
+        "RepoGuard checks for hardcoded secrets &amp; credentials, code-quality issues, "
+        "and language-specific security vulnerabilities — dispatched automatically to the "
+        "right tool for each file type."
+        "</p>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("**Supported languages**")
+    render_language_badges()
+    with st.expander("Which tool scans which language?", expanded=False):
+        render_language_tools_table()
+
+    st.divider()
 
     input_mode = st.radio("Input Mode", ["GitHub URL", "File List"], horizontal=True)
 
