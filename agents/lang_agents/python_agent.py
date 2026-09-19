@@ -23,6 +23,12 @@ async def _scan_all(files: List[str]) -> List[Dict[str, Any]]:
         for file_path in files:
             try:
                 code = open(file_path, "r", encoding="utf-8").read()
+                if not code.strip():
+                    # Ruff rejects empty input with "Input code must not be
+                    # empty" — a 0-byte or whitespace-only file (e.g. a bare
+                    # __init__.py) has nothing to lint, so skip the call
+                    # entirely rather than surfacing that as an error.
+                    continue
                 content = await driver.run_scan_in_session(code)
                 parsed = parse_mcp_text_content(content)
                 if parsed.get("error"):

@@ -21,6 +21,7 @@ DIRTY_FIXTURES = [
     "json_invalid",
     "mixed_repo",
     "python_unicode",
+    "python_empty_init",
 ]
 
 
@@ -131,6 +132,35 @@ def test_ruff_handles_unicode_content_without_crashing(cached_pipeline_result):
         f"emoji/arrow content, got: {findings}"
     )
     assert match["severity"] == "high", f"Expected severity 'high', got '{match['severity']}'"
+    assert match["tool"] == "ruff-check", f"Expected tool 'ruff-check', got '{match['tool']}'"
+
+
+def test_empty_init_file_is_skipped_without_crashing(cached_pipeline_result):
+    """Regression test: Ruff rejects empty input with "Input code must not
+    be empty" — a 0-byte or whitespace-only file (e.g. a bare __init__.py)
+    has nothing to lint, so the Python agent must skip it entirely instead
+    of sending it to Ruff and surfacing that as an error. The fixture also
+    has a real F401 issue in a sibling main.py, to prove skipping the empty
+    file doesn't stop the rest of the batch from being scanned normally."""
+    findings = _findings_for(cached_pipeline_result, "python_empty_init")
+
+    init_findings = [f for f in findings if f["file"] == "__init__.py"]
+    assert init_findings == [], (
+        f"Expected zero findings for the empty __init__.py (should be skipped "
+        f"before ever reaching Ruff), got: {init_findings}"
+    )
+
+    crash_findings = [f for f in findings if "RUFF_TOOL_ERROR" in f["rule"] or "RUFF_SCAN_ERROR" in f["rule"]]
+    assert crash_findings == [], (
+        f"Empty file must be skipped silently, not surfaced as a scan error: {crash_findings}"
+    )
+
+    match = find_finding(findings, file="main.py", rule="F401", line=4)
+    assert match is not None, (
+        f"Expected the real F401 unused-import finding for main.py — skipping "
+        f"the empty __init__.py must not stop the rest of the batch from being "
+        f"scanned, got: {findings}"
+    )
     assert match["tool"] == "ruff-check", f"Expected tool 'ruff-check', got '{match['tool']}'"
 
 
