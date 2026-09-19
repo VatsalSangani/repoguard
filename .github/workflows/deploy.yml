@@ -1,11 +1,20 @@
 name: Deploy RepoGuard to EC2
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run tests before deploying?'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   test:
+    if: ${{ github.event.inputs.run_tests == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,6 +47,7 @@ jobs:
 
   deploy:
     needs: test
+    if: ${{ always() && (needs.test.result == 'success' || github.event.inputs.run_tests == 'false') }}
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2
