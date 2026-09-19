@@ -10,6 +10,7 @@ import os
 from contextlib import AsyncExitStack
 from typing import Any
 
+from anyio import BrokenResourceError
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -82,7 +83,19 @@ class BaseMCPDriver:
         return self
 
     async def __aexit__(self, *exc_info) -> None:
-        await self.exit_stack.aclose()
+        try:
+            await self.exit_stack.aclose()
+        except (ExceptionGroup, BrokenResourceError):
+            # After asyncio.wait_for times out and cancels an in-flight
+            # tools/call, closing the stdio transport's task group can
+            # raise BrokenResourceError — sometimes wrapped in an
+            # ExceptionGroup — on Linux (observed in CI, not reproduced on
+            # Windows). The timeout itself already completed successfully
+            # (call_tool() below returns its structured timeout result);
+            # this is noisy cleanup on an already-dead connection, not a
+            # real failure, so it's suppressed rather than left to mask the
+            # original asyncio.TimeoutError.
+            pass
         self.session = None
 
     async def call_tool_in_session(self, tool_name: str, arguments: dict) -> Any:
