@@ -5,22 +5,114 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -q
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGSMITH_TRACING: true
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+          LANGSMITH_PROJECT: repoguard
+          LANGSMITH_ENDPOINT: ${{ secrets.LANGSMITH_ENDPOINT }}
+        run: pytest tests/ -v --timeout=120
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: 13.134.107.196
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/projects/repoguard
-            git pull origin main
+            set -e
+            DEPLOY_DIR=~/projects
+            APP=repoguard
+            LIVE=$DEPLOY_DIR/$APP
+            STAGING=$DEPLOY_DIR/${APP}-staging
+            BACKUP=$DEPLOY_DIR/${APP}-previous
+
+            echo "📦 Step 1: Clone fresh into staging"
+            rm -rf $STAGING
+            git clone --depth 1 --branch main https://github.com/VatsalSangani/repoguard.git $STAGING
+
+            echo "🐍 Step 2: Install Python deps in staging"
             source ~/venv/bin/activate
-            pip install -r requirements.txt -q
-            sudo systemctl restart repoguard
-            echo "✅ RepoGuard deployed successfully"
+            pip install -r $STAGING/requirements.txt -q
+
+            echo "📦 Step 3: Install Node deps in staging"
+            cd $STAGING
+            npm ci
+
+            echo "🧹 Step 4: Clean dev-only files from staging"
+            rm -rf test_repo* tests/ create_test_repo.py evaluate.py scratch_*.py
+            rm -rf __pycache__ .ruff_cache .git
+            rm -f *.png BATTLE_SCARS.md
+            find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+            echo "🔄 Step 5: Swap live ← staging, backup ← old live"
+            sudo systemctl stop repoguard
+            rm -rf $BACKUP
+            [ -d $LIVE ] && mv $LIVE $BACKUP
+            mv $STAGING $LIVE
+
+            echo "⚙️ Step 6: Update systemd and restart"
+            sudo tee /etc/systemd/system/repoguard.service > /dev/null << 'EOF'
+            [Unit]
+            Description=RepoGuard Streamlit App
+            After=network.target
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/projects/repoguard
+            Environment="PATH=/home/ubuntu/venv/bin:/usr/bin:/usr/local/bin"
+            Environment="NODE_PATH=/home/ubuntu/projects/repoguard/node_modules"
+            EnvironmentFile=/home/ubuntu/projects/.env
+            ExecStart=/home/ubuntu/venv/bin/streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --server.baseUrlPath=/repoguard-ui
+            Restart=always
+            RestartSec=3
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl start repoguard
+
+            echo "✅ Step 7: Health check"
+            sleep 5
+            if sudo systemctl is-active --quiet repoguard; then
+              echo "✅ RepoGuard deployed successfully"
+              rm -rf $BACKUP
+              echo "🧹 Cleaned up backup"
+            else
+              echo "❌ Health check failed — rolling back"
+              sudo systemctl stop repoguard
+              rm -rf $LIVE
+              mv $BACKUP $LIVE
+              sudo systemctl start repoguard
+              echo "⏪ Rolled back to previous version"
+              exit 1
+            fi
